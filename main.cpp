@@ -4,6 +4,7 @@
 #include <QDebug>
 #include <QFile>
 #include "jsonutils.h"
+#include "debuglogparser.h"
 #include <iostream>
 
 using namespace std;
@@ -21,6 +22,10 @@ int main(int argc, char *argv[])
     } else {
         qDebug() << "Json log to CSV conversion failed. Check the log trace";
     }
+
+//    QString dbgDirPath = "C:\\Users\\DivyanshuKumar\\OneDrive - Sinhal Udyog pvt ltd\\Documents\\2023-11-22";
+//    DebugLogParser *dbgLogParser = new DebugLogParser();
+//    dbgLogParser->parseDebugLogs(dbgDirPath);
 
     return 1;
 }
