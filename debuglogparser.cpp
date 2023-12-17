@@ -85,7 +85,7 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
         if (withinCycleRange && !line.contains(CycleEnd)) {
             // Extract message information from the line
             if (line.startsWith("Debug{")) {
-                logEntry.message = line.mid(6, line.length() - 7);  // Remove "Debug{" and "}"
+                logEntry.message = line.mid(5);  // Remove "Debug"
                 logEntry.messageType = "Json";
                 logEntry.tag = "Json";
             } else {
@@ -94,8 +94,10 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
                 // Check if the space was found
                 if (firstSpaceIndex != -1) {
                     // Extract the two parts
-                    logEntry.messageType = line.left(firstSpaceIndex);
-                    logEntry.tag = logEntry.messageType.mid(5);  // Remove "Debug"
+                    // logEntry.messageType = line.left(firstSpaceIndex);
+                    logEntry.messageType = "Debug";
+                    QString completeType = line.left(firstSpaceIndex);
+                    logEntry.tag = completeType.mid(5);  // Remove "Debug"
                     logEntry.message = line.mid(firstSpaceIndex + 1).trimmed();
 
                     // Check if the tag is enclosed in double quotes
