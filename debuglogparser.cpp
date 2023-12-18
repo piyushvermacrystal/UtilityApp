@@ -5,11 +5,19 @@
 #include <QSqlQuery>
 #include <QDir>
 #include <QSqlError>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 DebugLogParser::DebugLogParser() {}
 
+void DebugLogParser::getFinalSerialNumber(const QString &jsonString, int &out) {
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(jsonString.toLatin1());
+    QJsonObject jsonObject = jsonDoc.object();
+    out = jsonObject[MeterFinalSerialNumber].toVariant().toInt();
+}
+
 bool DebugLogParser::parseDebugLogs(const QString &dbgLogPath) {
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("meterlog.db");
 
     if (!db.open()) {
@@ -21,9 +29,12 @@ bool DebugLogParser::parseDebugLogs(const QString &dbgLogPath) {
     const QString createTableQuery = "CREATE TABLE IF NOT EXISTS MeterLogData ("
                                      "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                                      "cycleNumber INTEGER NOT NULL, "
+                                     "fileName TEXT, "
+                                     "date TEXT, "
                                      "messageType TEXT, "
                                      "tag TEXT, "
-                                     "message TEXT"
+                                     "message TEXT, "
+                                     "finalSerialNumber INTEGER"
                                      ")";
 
     if (!query.exec(createTableQuery)) {
@@ -37,19 +48,49 @@ bool DebugLogParser::parseDebugLogs(const QString &dbgLogPath) {
 
     QVector<LogEntry> logEntries;  // Container to store log entries
 
+    qDebug() << "Parsing log files from Directory : " << dbgLogPath << "\nprocessing...\n";
+
     for (const QString &logFileName : logFiles) {
         QString filePath = logDir.filePath(logFileName);
-        processLogFile(filePath, logEntries);
+
+        // Extracting fileName from the filePath
+        QFileInfo fileInfo(filePath);
+        QString fileName = fileInfo.fileName();
+
+        QFile logFile(filePath);
+        if (!logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qDebug() << "Error: Unable to open log file" << filePath;
+            continue;
+        }
+        QTextStream logStream(&logFile);
+
+        // Extracting date from the first line of the file
+        QString firstLine = logStream.readLine();
+        QRegExp dateRegExp(regexExpDate);
+        int pos = dateRegExp.indexIn(firstLine);
+        QString date = pos != -1 ? dateRegExp.cap(1) : "";
+        date = date.split('/').last().trimmed();
+
+        logFile.close();
+
+        processLogFile(filePath, fileName, date, logEntries);
     }
 
+    qDebug() << "Parsed log files successfully";
+    qDebug() << "Inserting data to the database" << "\nprocessing...\n";
+
     // Batch insert log entries into the database
-    batchInsertData(logEntries, db);
+    if (batchInsertData(logEntries)) {
+        qDebug() << "Inserted data to the database successfully";
+    } else {
+        qDebug() << "Data insertion to the database failed.";
+    }
 
     db.close();
     return true;
 }
 
-void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &logEntries) {
+void DebugLogParser::processLogFile(const QString &filePath, const QString& fileName, const QString& date, QVector<LogEntry> &logEntries) {
     QFile logFile(filePath);
     if (!logFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qDebug() << "Error: Unable to open log file" << filePath;
@@ -62,6 +103,7 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
 
     int currentCycleNumber = 0;
     bool withinCycleRange = false;
+    int currentFinalSerialNumber = 0;  // Default finalSerialNumber
 
     while (!logStream.atEnd()) {
         QString line = logStream.readLine();
@@ -72,9 +114,9 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
         // Check for Cycle Start
         if (line.contains(CycleStart)) {
             if (cycleRegex.indexIn(line) != -1) {
-                QString cycleNumberString = cycleRegex.cap(1);
-                currentCycleNumber = cycleNumberString.toInt();
+                currentCycleNumber = cycleRegex.cap(1).toInt();
                 withinCycleRange = true;
+                currentFinalSerialNumber = 0;
             } else {
                 qDebug() << "Error: Cycle number not found in the input string";
             }
@@ -88,13 +130,16 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
                 logEntry.message = line.mid(5);  // Remove "Debug"
                 logEntry.messageType = "Json";
                 logEntry.tag = "Json";
+                getFinalSerialNumber(logEntry.message, logEntry.finalSerialNumber);
+
+                // Update previous entries with the same cycleNumber
+                updatePrevEntriesForFinalSerialNumber(currentCycleNumber, logEntry.finalSerialNumber, logEntries);
+
+                currentFinalSerialNumber = logEntry.finalSerialNumber;
             } else {
                 int firstSpaceIndex = line.indexOf(' ');
 
-                // Check if the space was found
                 if (firstSpaceIndex != -1) {
-                    // Extract the two parts
-                    // logEntry.messageType = line.left(firstSpaceIndex);
                     logEntry.messageType = "Debug";
                     QString completeType = line.left(firstSpaceIndex);
                     logEntry.tag = completeType.mid(5);  // Remove "Debug"
@@ -106,13 +151,16 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
                         logEntry.tag = logEntry.tag.mid(1, logEntry.tag.length() - 2);
                     }
                 } else {
-                    // Output an error message if no space was found
-                    qDebug() << "Error: No space found in the string";
-                    continue;  // Skip processing this line
+                    // qDebug() << "Error: No space found in the string";
+                    continue;
                 }
+
+                logEntry.finalSerialNumber = currentFinalSerialNumber;
             }
 
             logEntry.cycleNumber = currentCycleNumber;
+            logEntry.fileName = fileName;
+            logEntry.date = date;
             logEntries.append(logEntry);
         } else {
             withinCycleRange = false;
@@ -122,36 +170,50 @@ void DebugLogParser::processLogFile(const QString &filePath, QVector<LogEntry> &
     logFile.close();
 }
 
-void DebugLogParser::batchInsertData(const QVector<LogEntry> &logEntries, QSqlDatabase &db) {
+bool DebugLogParser::batchInsertData(const QVector<LogEntry> &logEntries) {
     if (logEntries.isEmpty()) {
-        return;
+        qDebug() << "Error :: No entries found to fill table.";
+        return false;
     }
 
     QSqlQuery insertQuery(db);
-    insertQuery.prepare("INSERT INTO MeterLogData (cycleNumber, messageType, tag, message) "
-                        "VALUES (:cycleNumber, :messageType, :tag, :message)");
+    insertQuery.prepare("INSERT INTO MeterLogData (cycleNumber, fileName, date, messageType, tag, message, finalSerialNumber) "
+                        "VALUES (:cycleNumber, :fileName, :date, :messageType, :tag, :message, :finalSerialNumber)");
 
-    // Use a transaction for batch insert
     if (!db.transaction()) {
         qDebug() << "Error starting database transaction:" << db.lastError().text();
-        return;
+        return false;
     }
 
     for (const LogEntry &logEntry : logEntries) {
         insertQuery.bindValue(":cycleNumber", logEntry.cycleNumber);
+        insertQuery.bindValue(":fileName", logEntry.fileName);
+        insertQuery.bindValue(":date", logEntry.date);
         insertQuery.bindValue(":messageType", logEntry.messageType);
         insertQuery.bindValue(":tag", logEntry.tag);
         insertQuery.bindValue(":message", logEntry.message);
+        insertQuery.bindValue(":finalSerialNumber", logEntry.finalSerialNumber);
 
         if (!insertQuery.exec()) {
             qDebug() << "Error inserting data into database:" << insertQuery.lastError().text();
-            db.rollback();  // Rollback the transaction in case of an error
-            return;
+            db.rollback();
+            return false;
         }
     }
 
-    // Commit the transaction if all inserts are successful
     if (!db.commit()) {
         qDebug() << "Error committing database transaction:" << db.lastError().text();
+        return false;
     }
+    return true;
+}
+
+void DebugLogParser::updatePrevEntriesForFinalSerialNumber(int cycleNumber, int finalSerialNumber, QVector<LogEntry> &logEntries) {
+    if (cycleNumber == 0) {
+        return;
+    }
+
+    for(auto& it : logEntries)
+        if(it.cycleNumber == cycleNumber)
+            it.finalSerialNumber = finalSerialNumber;
 }
