@@ -12,6 +12,7 @@ struct LogEntry {
     QString messageType;
     QString tag;
     QString message;
+    int finalSerialNumber;
 };
 
 class DebugLogParser
@@ -23,7 +24,12 @@ public:
 
 private:
     void processLogFile(const QString &filePath, QVector<LogEntry> &logEntries);
-    void batchInsertData(const QVector<LogEntry> &logEntries, QSqlDatabase &db);
+    void batchInsertData(const QVector<LogEntry> &logEntries);
+
+    void getFinalSerialNumber(const QString& jsonString, int& out);
+    void updatePrevEntriesForFinalSerialNumber(int cycleNumber, int finalSerialNumber, QVector<LogEntry> &logEntries);
+
+    QSqlDatabase db;
 };
 
 #endif // DEBUGLOGPARSER_H
