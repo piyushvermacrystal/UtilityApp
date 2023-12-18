@@ -111,6 +111,7 @@ void DebugLogParser::processLogFile(const QString &filePath, const QString& file
         LogEntry logEntry;
         logEntry.cycleNumber = 0;
 
+        // Check for Cycle Start
         if (line.contains(CycleStart)) {
             if (cycleRegex.indexIn(line) != -1) {
                 currentCycleNumber = cycleRegex.cap(1).toInt();
@@ -122,7 +123,9 @@ void DebugLogParser::processLogFile(const QString &filePath, const QString& file
             continue;
         }
 
+        // Process lines within the cycle
         if (withinCycleRange && !line.contains(CycleEnd)) {
+            // Extract message information from the line
             if (line.startsWith("Debug{")) {
                 logEntry.message = line.mid(5);  // Remove "Debug"
                 logEntry.messageType = "Json";
@@ -142,7 +145,9 @@ void DebugLogParser::processLogFile(const QString &filePath, const QString& file
                     logEntry.tag = completeType.mid(5);  // Remove "Debug"
                     logEntry.message = line.mid(firstSpaceIndex + 1).trimmed();
 
+                    // Check if the tag is enclosed in double quotes
                     if (logEntry.tag.startsWith("\"") && logEntry.tag.endsWith("\"")) {
+                        // Remove double quotes from the tag
                         logEntry.tag = logEntry.tag.mid(1, logEntry.tag.length() - 2);
                     }
                 } else {
