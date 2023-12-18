@@ -9,5 +9,6 @@
 
 // Defines for regex expression for pattern searching
 #define regexExpCycleNo                  "Cycle Start\\s*(\\d+)"
+#define regexExpDate                     "\"([^\"]+)\""
 
 #endif // DEFINES_H
