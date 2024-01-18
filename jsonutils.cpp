@@ -8,7 +8,7 @@ const QString header =  "failedAt,meterTmpSerialNumber,meterMemoryNumber,meterFi
                         "SCisTestPass,SClastState,SCphaseWattHour,SCneutralWattHour,SCphaseEnergy,SCneutralEnergy,SCphaseReactiveEnergy,SCneutralReactiveEnergy,SCcumulativeEnergy,SCtheoryEnergy,SCpowerWH,"
                         "E1isTestPass,E1lastState,E1phaseWattHour,E1neutralWattHour,E1phaseEnergy,E1neutralEnergy,E1phaseReactiveEnergy,E1neutralReactiveEnergy,E1cumulativeEnergy,E1theoryEnergy,E1powerWH,"
                         "E2isTestPass,E2lastState,E2phaseWattHour,E2neutralWattHour,E2phaseEnergy,E2neutralEnergy,E2phaseReactiveEnergy,E2neutralReactiveEnergy,E2cumulativeEnergy,E2theoryEnergy,E2powerWH,"
-                        "NSisTestPass,NSlastState,NSmeterMemoryNumber,LASloaNumber,LASmfgDate,LASserialNumber\r\n";
+                        "NSisTestPass,NSlastState,NSmeterMemoryNumber,LASloaNumber,LASmfgDate,LASserialNumber, FileName, LineNumber\r\n";
 
 JsonUtils::JsonUtils()
 {
@@ -27,13 +27,14 @@ void JsonUtils::flattenJson(const QJsonObject &jsonObject, QStringList &values)
     }
 }
 
-bool JsonUtils::convertJsonToCSV(QTextStream& in, QTextStream& out)
+bool JsonUtils::convertJsonToCSV(QTextStream& in, QTextStream& out, QString fileName)
 {
     static bool parseNext = false;
-
+    int lineNumber = 0;
     while (!in.atEnd())
     {
         QString line = in.readLine();
+        lineNumber++;
 
         if(!parseNext){
             if(line.contains("--WatchMe--"))
@@ -135,6 +136,9 @@ bool JsonUtils::convertJsonToCSV(QTextStream& in, QTextStream& out)
             values << jsonObject.value("laserEngraveResult").toObject().value("mfgDate").toString();
             values << jsonObject.value("laserEngraveResult").toObject().value("serialNumber").toString();
 
+            values << fileName;
+            values << QString("%1").arg(lineNumber);
+
             for (const QString& value : values) {
               out << "\"" << value << "\",";
             }
@@ -190,7 +194,7 @@ bool JsonUtils::convertJsonFileDirToCSV(const QString& dbgDirPath, QFile& csvFil
         }
 
         QTextStream in(&file);
-        bool result = convertJsonToCSV(in, out);
+        bool result = convertJsonToCSV(in, out, fileName);
         file.close();
         if (!result) {
             return false;

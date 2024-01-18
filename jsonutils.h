@@ -19,7 +19,7 @@ public:
 private:
     void flattenJson(const QJsonObject& jsonObject, QStringList& values);
 
-    bool convertJsonToCSV(QTextStream& in, QTextStream& out);
+    bool convertJsonToCSV(QTextStream& in, QTextStream& out, QString fileName = "");
 };
 
 #endif // JSONUTILS_H
