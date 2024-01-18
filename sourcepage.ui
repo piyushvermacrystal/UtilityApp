@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SourcePage</class>
+ <widget class="QWidget" name="SourcePage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>922</width>
+    <height>547</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <widget class="QPushButton" name="SelectLogDirPushButton">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>140</y>
+     <width>591</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Select Log Directory</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="logDirPathLineEdit">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>40</y>
+     <width>881</width>
+     <height>71</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="jsonUtilButton">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>320</y>
+     <width>251</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>NEXT TO JSON UTILITY</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="parseUtilButton">
+   <property name="geometry">
+    <rect>
+     <x>500</x>
+     <y>320</y>
+     <width>261</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>NEXT TO PARSING UTILITY</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
