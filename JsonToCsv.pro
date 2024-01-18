@@ -18,19 +18,26 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     debuglogparser.cpp \
+    jsonutilpage.cpp \
     jsonutils.cpp \
     main.cpp \
-    parsedbglog.cpp \
+    parseutilpage.cpp \
+    sourcepage.cpp \
     widget.cpp
 
 HEADERS += \
     debuglogparser.h \
     defines.h \
+    jsonutilpage.h \
     jsonutils.h \
-    parsedbglog.h \
+    parseutilpage.h \
+    sourcepage.h \
     widget.h
 
 FORMS += \
+    jsonutilpage.ui \
+    parseutilpage.ui \
+    sourcepage.ui \
     widget.ui
 
 # Default rules for deployment.
